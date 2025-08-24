@@ -3,6 +3,11 @@
   "module": "index.ts",
   "type": "module",
   "private": true,
+  "dependencies": {
+    "cheerio": "^1.1.2",
+    "commander": "^14.0.0",
+    "date-fns": "^4.1.0"
+  },
   "devDependencies": {
     "@types/bun": "latest"
   },
