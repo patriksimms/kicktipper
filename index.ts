@@ -235,7 +235,7 @@ async function placeBets(
             })
 
             if (submitRes.ok) {
-                console.log(`✅ Bets submitted for ${com}`)
+                console.log(`✅ Bets submitted for ${com} at ${new Date()}`)
             } else {
                 console.error(`❌ Failed to submit bets for ${com}`)
             }
