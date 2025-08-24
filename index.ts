@@ -46,9 +46,10 @@ function parseDeadline(deadline: string): number {
 }
 
 async function login(username: string, password: string): Promise<string> {
+
     const res = await fetch(URL_LOGIN, {
         headers: {
-            cookie: 'kurzname=info; darkmodeAutoStatus=off; timezone=Europe/Berlin; consentUUID=848f3895-8c5b-49d7-849b-9e5d1b3c653d; SESSION=YzAxMjEzOWYtYWJmOC00NjVkLWI5ZmUtNmU5YjkwZmM0ZDFi',
+            cookie: 'kurzname=info; darkmodeAutoStatus=off; timezone=Europe/Berlin; consentUUID=848f3895-8c5b-49d7-849b-9e5d1b3c653d; SESSION=YzhjZGVmZjQtMGUzZi00MWI5LWI2Y2EtNzRhNWI3NTZjNmFm',
         },
         referrer: 'https://www.kicktipp.de/info/profil/login',
         body: new URLSearchParams({
@@ -114,12 +115,14 @@ async function parseMatchRows(
         const away = $(tds[2]).text()
         const odds = $(tds[4])
             .text()
+            // removing the start of the string
+            .slice('Quote: '.length)
             .split('/')
             .map((s) => s.trim())
 
         if (odds.length === 3) {
             if (dateStr.trim().length === 0) {
-                console.info('Unknown Date for Game: ', home, away)
+                // console.info('Unknown Date for Game: ', home, away)
             } else {
                 matches.push(new Match(home, away, dateStr, odds[0], odds[1], odds[2]))
             }

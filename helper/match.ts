@@ -19,12 +19,13 @@ export class Match {
     this.home = home.trim();
     this.away = away.trim();
     this.date = parse(dateStr.trim(), 'dd.MM.yy HH:mm', new Date());
+    // console.log('d', rateHome)
     this.rateHome = parseFloat(rateHome);
     this.rateAway = parseFloat(rateAway);
     this.rateDraw = parseFloat(rateDraw);
   }
 
   toString() {
-    return `${this.home} vs ${this.away} (${this.date.toISOString()})`;
+    return `${this.home} vs ${this.away} (${this.date.toISOString().split('T')[0]}) (${this.rateHome};${this.rateAway};${this.rateDraw})`;
   }
 }
