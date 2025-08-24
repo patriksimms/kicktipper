@@ -26,6 +26,10 @@ export class Match {
   }
 
   toString() {
-    return `${this.home} vs ${this.away} (${this.date.toISOString().split('T')[0]}) (${this.rateHome};${this.rateAway};${this.rateDraw})`;
+    let date = 'UNKNOWN'
+    if (this.date.toString() !== 'Invalid Date') {
+      date = this.date.toISOString().split('T')[0]!
+    }
+    return `${this.home} vs ${this.away} (${date}) (${this.rateHome};${this.rateAway};${this.rateDraw})`;
   }
 }

@@ -46,7 +46,6 @@ function parseDeadline(deadline: string): number {
 }
 
 async function login(username: string, password: string): Promise<string> {
-
     const res = await fetch(URL_LOGIN, {
         headers: {
             cookie: 'kurzname=info; darkmodeAutoStatus=off; timezone=Europe/Berlin; consentUUID=848f3895-8c5b-49d7-849b-9e5d1b3c653d; SESSION=YzhjZGVmZjQtMGUzZi00MWI5LWI2Y2EtNzRhNWI3NTZjNmFm',
@@ -86,7 +85,7 @@ async function getCommunities(token: string): Promise<string[]> {
             result.push(href.replace(/\//g, ''))
         }
     })
-    return result
+    return result.filter(c => !c.startsWith('info'))
 }
 
 async function parseMatchRows(
@@ -141,27 +140,107 @@ async function placeBets(
     dryRun = false,
     matchday?: number,
 ) {
-    for (const com of communities.filter(c => !c.startsWith('info'))) {
+    for (const com of communities) {
         console.log(`Community: ${com}`)
-        const matches = await parseMatchRows(token, com, matchday)
 
-        for (const match of matches) {
+        // Load tippabgabe page
+        let url = `${URL_BASE}/${com}/tippabgabe`
+        if (matchday) {
+            url += `?&spieltagIndex=${matchday}`
+        }
+
+        const res = await fetch(url, { headers: { cookie: `login=${token}` } })
+        const html = await res.text()
+        const $ = cheerio.load(html)
+
+        // Get the form
+        const form = $('form').first()
+        const action = URL_BASE + form.attr('action') || url
+        const inputs = form.find('input')
+
+        // Build form data
+        const formData: Record<string, string> = {}
+        inputs.each((_, el) => {
+            const name = $(el).attr('name')
+            const value = $(el).attr('value') || ''
+            if (name) formData[name] = value
+        })
+
+        // Parse matches
+        const rows = $('tbody tr')
+        rows.each((_, row) => {
+            const tds = $(row).find('td')
+            if (tds.length < 5) return
+
+            const dateStr = $(tds[0]).text()
+            const home = $(tds[1]).text()
+            const away = $(tds[2]).text()
+            const odds = $(tds[4])
+                .text()
+                .slice('Quote: '.length)
+                .split('/')
+                .map((s) => s.trim())
+
+            if (odds.length !== 3) return
+
+            const match = new Match(home, away, dateStr, odds[0], odds[1], odds[2])
+
+            // Find input fields
+            const homeInput = $(tds[3]).find("input[id$='_heimTipp']")
+            const awayInput = $(tds[3]).find("input[id$='_gastTipp']")
+
+            if (!homeInput.length || !awayInput.length) {
+                console.log(`${match} - no bets possible`)
+                return
+            }
+
+            const homeName = homeInput.attr('name')!
+            const awayName = awayInput.attr('name')!
+            const currentHome = formData[homeName]
+            const currentAway = formData[awayName]
+
+            if (!override && (currentHome || currentAway)) {
+                console.log(`${match} - skipped, already placed ${currentHome}:${currentAway}`)
+                return
+            }
+
             if (deadline) {
                 const ms = parseDeadline(deadline)
                 const timeToMatch = match.date.getTime() - Date.now()
                 if (timeToMatch > ms) {
-                    console.log(`${match} - not betting yet, due in ${timeToMatch / 1000}s`)
-                    continue
+                    console.log(
+                        `${match} - not betting yet, due in ${Math.round(timeToMatch / 60000)}m`,
+                    )
+                    return
                 }
             }
 
             const [homeBet, awayBet] = predictor.predict(match)
             console.log(`${match} - betting ${homeBet}:${awayBet}`)
 
-            if (!dryRun) {
-                // TODO: implement actual POST to submit bets
-                console.log(`Submitting bet for ${com}: ${homeBet}:${awayBet}`)
+            formData[homeName] = String(homeBet)
+            formData[awayName] = String(awayBet)
+        })
+
+        if (!dryRun) {
+            const body = new URLSearchParams(formData).toString()
+            console.log('action', action)
+            const submitRes = await fetch(action, {
+                method: 'POST',
+                headers: {
+                    cookie: `login=${token}`,
+                    'content-type': 'application/x-www-form-urlencoded',
+                },
+                body,
+            })
+
+            if (submitRes.ok) {
+                console.log(`✅ Bets submitted for ${com}`)
+            } else {
+                console.error(`❌ Failed to submit bets for ${com}`)
             }
+        } else {
+            console.log('INFO: Dry run, no bets were placed')
         }
     }
 }
